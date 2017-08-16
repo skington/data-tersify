@@ -16,7 +16,7 @@ Data::Tersify - generate terse equivalents of complex data structures
 =head1 SYNOPSIS
 
  use Data::Dumper;
- use Data::Tersify;
+ use Data::Tersify qw(tersify);
  
  my $complicated_data_structure = ...;
  
@@ -46,6 +46,20 @@ design, Data::Tersify is lossy and will throw away information! It supposes,
 though, that if you're using it, you want to dump information about a complex
 data structure, and you don't I<care> about the fine details.
 
+=head2 tersify
+
+ In: $data_structure
+ In: $terser_data_structure
+
+Supplied with a data structure, returns a data structure with the complicated
+bits summarised. Every attempt is made to preserve those parts of the data
+structure that don't need summarising.
+
+Structures are only summarised if (1) they're blessed objects, and (2) a
+plugin has been registered that groks that type of object.
+
 =cut
+
+### TODO: if we replaced the value of any hash key, clone the hash.
 
 1;
