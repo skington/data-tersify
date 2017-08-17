@@ -94,7 +94,7 @@ sub _tersify {
         if ($caller_sub eq 'Data::Tersify::tersify') {
             return $data_structure;
         }
-        my $terse_object = tersify_via_plugin($data_structure);
+        my $terse_object = _tersify_via_plugin($data_structure);
         my $changed = blessed($terse_object)
             && $terse_object->isa('Data::Tersify::Summary');
         return ($terse_object, $changed);
@@ -134,7 +134,7 @@ Out of the box, Data::Tersify comes with plugins for DateTime objects.
 {
     my (%plugin_handles, %handled_by_plugin);
 
-    sub tersify_via_plugin {
+    sub _tersify_via_plugin {
         my ($object) = @_;
 
         if (!keys %plugin_handles) {
