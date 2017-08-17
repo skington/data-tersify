@@ -9,6 +9,9 @@ our @EXPORT_OK = qw(tersify);
 our $VERSION = '0.001';
 $VERSION = eval $VERSION;
 
+use Module::Pluggable require => 1;
+use Scalar::Util qw(blessed refaddr);
+
 =head1 NAME
 
 Data::Tersify - generate terse equivalents of complex data structures
@@ -60,6 +63,89 @@ plugin has been registered that groks that type of object.
 
 =cut
 
-### TODO: if we replaced the value of any hash key, clone the hash.
+sub tersify {
+    my ($data_structure) = @_;
+
+    my $changed;
+    ($data_structure, $changed) = _tersify($data_structure);
+    return $data_structure;
+}
+
+sub _tersify {
+    my ($data_structure) = @_;
+
+    # If this is a simple scalar, there's nothing to change.
+    if (!ref($data_structure)) {
+        return ($data_structure, 0);
+    }
+
+    # If this is a blessed object, see if we know how to tersify it.
+    if (blessed($data_structure)) {
+        my $object_or_terse_description = tersify_via_plugin($data_structure);
+        return ($object_or_terse_description,
+            ref($object_or_terse_description) eq 'HASH');
+    }
+
+    # For arrays and hashes, check if any of the elements changed, and if so
+    # return a fresh array or hash.
+    my $changed;
+    my $get_new_value = sub {
+        my ($old_value) = @_;
+        my ($new_value, $this_value_changed) = _tersify($old_value);
+        $changed += $this_value_changed;
+        return $this_value_changed ? $new_value : $old_value;
+    };
+    if (ref($data_structure) eq 'ARRAY') {
+        my @new_array;
+        for my $element (@$data_structure) {
+            push @new_array, $get_new_value->($element);
+        }
+        return $changed ? (\@new_array, 1) : ($data_structure, 0);
+    }
+    if (ref($data_structure) eq 'HASH') {
+        my %new_hash;
+        for my $key (%$data_structure) {
+            $new_hash{$key} = $get_new_value->($data_structure->{$key});
+        }
+        return $changed ? (\%new_hash, 1) : ($data_structure, 0);
+    }
+}
+
+=head2 PLUGINS
+
+Out of the box, Data::Tersify comes with plugins for DateTime objects.
+
+=cut
+
+{
+    my (%plugin_handles, %handled_by_plugin);
+
+    sub tersify_via_plugin {
+        my ($object) = @_;
+
+        if (!keys %plugin_handles) {
+            for my $plugin (plugins()) {
+                my $handles = $plugin->handles;
+                $plugin_handles{$plugin} = $handles;
+                if (!ref($handles)) {
+                    $handled_by_plugin{$handles} = $plugin;
+                } elsif (ref($handles) eq 'ARRAY') {
+                    for my $class (@$handles) {
+                        $handled_by_plugin{$class} = $plugin;
+                    }
+                }
+            }
+        }
+
+        if (my $plugin = $handled_by_plugin{ref($object)}) {
+            return {
+                ref     => ref($object),
+                refaddr => refaddr($object),
+                value   => $plugin->tersify($object),
+            };
+        }
+        return $object;
+    }
+}
 
 1;
