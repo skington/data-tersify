@@ -59,8 +59,7 @@ sub test_basic_structures_unchanged {
 }
 
 sub test_plugin {
-    my $object = TestObject->new;
-    $object->id(42);
+    my $object = TestObject->new(42);
 
     # Basic tests
     is(tersify($object), $object,
@@ -71,9 +70,67 @@ sub test_plugin {
     is(ref($tersified->{object}),
         'Data::Tersify::Summary',
         'The object value is now our summary object');
+    my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
     like(
         ${ $tersified->{object} },
-        qr/^ TestObject \s \( 0x [0-9a-f]+ \) \s ID \s 42 $/x,
+        qr/^ TestObject \s $re_refaddr \s ID \s 42 $/x,
         'The object got summarised as a scalar reference'
+    );
+
+    # Structures containing tersified objects are returned modified,
+    # as are any parent structures. Other structures are unaffected.
+    my $emergency_object = TestObject->new(999);
+    my $deep_object = TestObject->new(5683);
+    my $original = {
+        meh => [
+            'mumbo', 'jumbo',
+            {
+                faff => 'nonsense',
+            }
+        ],
+        emergency      => $emergency_object,
+        deep_structure => {
+            many => {
+                layers => {
+                    until => $deep_object,
+                }
+            }
+        }
+    };
+    $tersified = tersify($original);
+    is_deeply(
+        $tersified->{meh},
+        ['mumbo', 'jumbo', { faff => 'nonsense' }],
+        'The data structure with no objects is unaffected'
+    );
+    is(
+        refaddr($tersified->{meh}),
+        refaddr($original->{meh}),
+        q{In fact it's the same structure}
+    );
+    isnt(refaddr($tersified), refaddr($original),
+        'But the root structure is different');
+    like(
+        ${$tersified->{emergency}},
+        qr{^ TestObject \s $re_refaddr \s ID \s 999 $}x,
+        'The emergency test object was summarised'
+    );
+    like(${$tersified->{deep_structure}{many}{layers}{until}},
+        qr{^ TestObject \s $re_refaddr \s ID \s 5683 $}x,
+        'The deep test object was summarised');
+    isnt(
+        refaddr($tersified->{deep_structure}),
+        refaddr($original->{deep_structure}),
+        'The deep structure is also a new hash'
+    );
+    isnt(
+        refaddr($tersified->{deep_structure}{many}),
+        refaddr($original->{deep_structure}{many}),
+        'As is many'
+    );
+    isnt(
+        refaddr($tersified->{deep_structure}{many}{layers}),
+        refaddr($original->{deep_structure}{many}{layers}),
+        'And layers'
     );
 }

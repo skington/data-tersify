@@ -4,7 +4,11 @@ use strict;
 use warnings;
 
 sub new {
-    return bless {} => shift || __PACKAGE__;
+    my $self = bless {} => shift || __PACKAGE__;
+    if (@_) {
+        $self->{id} = shift;
+    }
+    return $self;
 }
 
 sub id {
