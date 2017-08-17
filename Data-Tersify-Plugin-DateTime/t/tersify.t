@@ -22,20 +22,20 @@ sub test_datetime {
         minute => 9,
         second => 23
     );
-    my $re_refaddr = qr{ \( 0x [0-9a-f]+ \ ) }x;
+    my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
     my $original = {
         day        => $just_date,
         exact_time => $full,
     };
     my $tersified = tersify($original);
     like(
-        $tersified->{day},
-        qr{^ DateTime \s $re_refaddr 2017-08-17 $}x,
+        ${ $tersified->{day} },
+        qr{^ DateTime \s $re_refaddr \s 2017-08-17 $}x,
         'A DateTime with just day components is summarised as ymd'
     );
     like(
-        $tersified->{exact_time},
-        qr{^ DateTime \s $re_refaddr 2017-08-17 \s 15:09:23$}x,
+        ${ $tersified->{exact_time} },
+        qr{^ DateTime \s $re_refaddr \s 2017-08-17 \s 15:09:23$}x,
         'A fuller DateTime is summarised as ymd hms'
     );
 }
