@@ -135,6 +135,10 @@ sub test_plugin {
         refaddr($original->{deep_structure}{many}{layers}),
         'And layers'
     );
+    is(ref($original->{emergency}),
+        'TestObject', 'We still have the original emergency object');
+    is(ref($original->{deep_structure}{many}{layers}{until}),
+        'TestObject', 'We also have the deep object');
 
     # Plugins can say that they handle multiple types of object.
     my $original_multiple = {
