@@ -160,4 +160,11 @@ Out of the box, Data::Tersify comes with plugins for DateTime objects.
     }
 }
 
+=head1 LICENSE
+
+This is free software; you can redistribute it and/or modify it under the same
+terms as Perl 5.
+
+=cut
+
 1;
