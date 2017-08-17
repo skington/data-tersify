@@ -32,6 +32,3 @@ MYMETA.yml
 MYMETA.json
 nytprof.out
 pm_to_blib
-
-# Ignore build directories
-warnings-everywhere-*
