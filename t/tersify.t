@@ -10,6 +10,8 @@ use Test::More;
 
 use Data::Tersify qw(tersify);
 use TestObject;
+use TestObject::WithName;
+use TestObject::WithUUID;
 
 test_basic_structures_unchanged();
 test_plugin();
@@ -80,7 +82,7 @@ sub test_plugin {
     # Structures containing tersified objects are returned modified,
     # as are any parent structures. Other structures are unaffected.
     my $emergency_object = TestObject->new(999);
-    my $deep_object = TestObject->new(5683);
+    my $deep_object      = TestObject->new(5683);
     my $original = {
         meh => [
             'mumbo', 'jumbo',
@@ -133,4 +135,24 @@ sub test_plugin {
         refaddr($original->{deep_structure}{many}{layers}),
         'And layers'
     );
+
+    # Plugins can say that they handle multiple types of object.
+    my $original_multiple = {
+        id => 12,
+        name => TestObject::WithName->new('Bob'),
+        uuid => TestObject::WithUUID->new('1234567890AB-or-something'),
+        'is that even a real UUID?' => 'no, who cares?',
+    };
+    my $tersified_multiple = tersify($original_multiple);
+    like(
+        ${ $tersified_multiple->{name} },
+        qr{^ TestObject::WithName \s $re_refaddr \s Name \s Bob $}x,
+        'The named object was summarised'
+    );
+    like(
+        ${ $tersified_multiple->{uuid} },
+        qr{^ TestObject::WithUUID \s $re_refaddr \s UUID \s 123456.+ $}x,
+        'The object with a UUID was summarised'
+    );
+    
 }
