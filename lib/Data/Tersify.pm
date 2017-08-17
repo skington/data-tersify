@@ -58,8 +58,13 @@ Supplied with a data structure, returns a data structure with the complicated
 bits summarised. Every attempt is made to preserve those parts of the data
 structure that don't need summarising.
 
-Structures are only summarised if (1) they're blessed objects, and (2) a
+Structures are only summarised if (1) they're blessed objects, (2) they're 
+not the root structure passed to tersify (so if you actually to want to
+dump a complex DBIx::Class object, for instance, you still can), and (3) a
 plugin has been registered that groks that type of object.
+
+Summaries are blessed scalars of the form "I<Classname> (I<refaddr>)
+I<summary>", e.g. "DateTime (0xdeadbeef) 2017-08-15".
 
 =cut
 
@@ -81,9 +86,18 @@ sub _tersify {
 
     # If this is a blessed object, see if we know how to tersify it.
     if (blessed($data_structure)) {
-        my $object_or_terse_description = tersify_via_plugin($data_structure);
-        return ($object_or_terse_description,
-            ref($object_or_terse_description) eq 'HASH');
+        # Although if this is the root structure passed to tersify, we want
+        # to pass it through as-is; we only tersify complicated objects
+        # that feature somewhere deeper in the data structure, possibly
+        # unexpectedly.
+        my ($caller_sub) = (caller(1))[3];
+        if ($caller_sub eq 'Data::Tersify::tersify') {
+            return $data_structure;
+        }
+        my $terse_object = tersify_via_plugin($data_structure);
+        my $changed = blessed($terse_object)
+            && $terse_object->isa('Data::Tersify::Summary');
+        return ($terse_object, $changed);
     }
 
     # For arrays and hashes, check if any of the elements changed, and if so
@@ -104,7 +118,7 @@ sub _tersify {
     }
     if (ref($data_structure) eq 'HASH') {
         my %new_hash;
-        for my $key (%$data_structure) {
+        for my $key (keys %$data_structure) {
             $new_hash{$key} = $get_new_value->($data_structure->{$key});
         }
         return $changed ? (\%new_hash, 1) : ($data_structure, 0);
@@ -138,11 +152,9 @@ Out of the box, Data::Tersify comes with plugins for DateTime objects.
         }
 
         if (my $plugin = $handled_by_plugin{ref($object)}) {
-            return {
-                ref     => ref($object),
-                refaddr => refaddr($object),
-                value   => $plugin->tersify($object),
-            };
+            my $summary = sprintf('%s (0x%x) %s',
+                ref($object), refaddr($object), $plugin->tersify($object));
+            return bless \$summary => 'Data::Tersify::Summary';
         }
         return $object;
     }

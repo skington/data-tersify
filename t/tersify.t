@@ -2,12 +2,17 @@
 
 use strict;
 use warnings;
+use FindBin;
+use lib "$FindBin::Bin/lib";
 
+use Scalar::Util qw(refaddr);
 use Test::More;
 
 use Data::Tersify qw(tersify);
+use TestObject;
 
 test_basic_structures_unchanged();
+test_plugin();
 
 done_testing();
 
@@ -51,4 +56,24 @@ sub test_basic_structures_unchanged {
     is_deeply(tersify(\%complex_structure),
         \%complex_structure,
         'A structure with many nested arrayrefs and hashrefs is untouched');
+}
+
+sub test_plugin {
+    my $object = TestObject->new;
+    $object->id(42);
+
+    # Basic tests
+    is(tersify($object), $object,
+        'An object passed directly is not tersified');
+    my $tersified = tersify({object => $object });
+    is_deeply([keys %$tersified],
+        ['object'], 'Still have just the one key called object');
+    is(ref($tersified->{object}),
+        'Data::Tersify::Summary',
+        'The object value is now our summary object');
+    like(
+        ${ $tersified->{object} },
+        qr/^ TestObject \s \( 0x [0-9a-f]+ \) \s ID \s 42 $/x,
+        'The object got summarised as a scalar reference'
+    );
 }
