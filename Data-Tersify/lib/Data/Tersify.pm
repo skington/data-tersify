@@ -10,7 +10,7 @@ our $VERSION = '0.001';
 $VERSION = eval $VERSION;
 
 use Module::Pluggable require => 1;
-use Scalar::Util qw(blessed refaddr);
+use Scalar::Util qw(blessed refaddr reftype);
 
 =head1 NAME
 
@@ -58,13 +58,42 @@ Supplied with a data structure, returns a data structure with the complicated
 bits summarised. Every attempt is made to preserve those parts of the data
 structure that don't need summarising.
 
-Structures are only summarised if (1) they're blessed objects, (2) they're 
-not the root structure passed to tersify (so if you actually to want to
-dump a complex DBIx::Class object, for instance, you still can), and (3) a
-plugin has been registered that groks that type of object.
+Objects are only summarised if (1) they're blessed objects, (2) they're
+not the root structure passed to tersify (so if you actually to want to dump a
+complex DBIx::Class object, for instance, you still can), and (3) a
+plugin has been registered that groks that type of object, I<or> they
+contain as an element one such object.
 
-Summaries are blessed scalars of the form "I<Classname> (I<refaddr>)
-I<summary>", e.g. "DateTime (0xdeadbeef) 2017-08-15".
+Summaries are either scalar references of the form "I<Classname> (I<refaddr>)
+I<summary>", e.g. "DateTime (0xdeadbeef) 2017-08-15", blessed into the
+Data::Tersify::Summary class, I<or> copies of the
+object's internal state with any sub-objects tersified as above, blessed into
+the Data::Tersify::Summary::I<Foo> class, where I<Foo> is the class the
+object was originally blessed into.
+
+So, if you had the plugin Data::Tersify::Plugin::DateTime installed,
+passing a DateTime object to tersify would return that same object, untouched;
+but passing
+
+ {
+     name        => 'Now',
+     description => 'The time it currently is, not a time in the future',
+     datetime    => DateTime->now
+ }
+
+to tersify would return something like this:
+
+ {
+    name        => 'Now',
+    description => 'The time it currently is, not a time in the future',
+    datetime    => bless \"DateTime (0xdeadbeef) 2018-08-12 17:15:00",
+        "Data::Tersify::Summary",
+ }
+
+If the hashref had been blessed into the class "Time::Description",
+and had a refaddr of 0xcafebabe, you would get back a hash as above, but
+blessed into the class
+C<Data::Tersify::Summary::Time::Description::0xcafebabe>.
 
 =cut
 
@@ -94,9 +123,34 @@ sub _tersify {
         if ($caller_sub eq 'Data::Tersify::tersify') {
             return $data_structure;
         }
+
+        # We might know how to tersify such an object directly, via a
+        # plugin.
         my $terse_object = _tersify_via_plugin($data_structure);
         my $changed = blessed($terse_object)
             && $terse_object->isa('Data::Tersify::Summary');
+        if ($changed) {
+            return ($terse_object, $changed);
+        }
+
+        # If we didn't tersify this object, maybe we can tersify its internal
+        # structure?
+        my $object_contents;
+        if (reftype($data_structure) eq 'HASH') {
+            $object_contents = { %$data_structure };
+        } elsif (reftype($data_structure) eq 'ARRAY') {
+            $object_contents = [ @$data_structure ];
+        }
+        if ($object_contents) {
+            my $maybe_new_structure;
+            ($maybe_new_structure, $changed) = _tersify($object_contents);
+            if ($changed) {
+                $terse_object = $maybe_new_structure;
+                bless $terse_object =>
+                    sprintf('Data::Tersify::Summary::%s::0x%s',
+                    ref($data_structure), refaddr($data_structure));
+            }
+        }
         return ($terse_object, $changed);
     }
 
@@ -127,7 +181,9 @@ sub _tersify {
 
 =head2 PLUGINS
 
-Out of the box, Data::Tersify comes with plugins for DateTime objects.
+Data::Tersify can be extended by plugins. See Data::Tersify::Plugin for
+a description of plugins, and Data::Tersify::Plugin::DateTime (provided in a
+separate distribution) as an example of such a plugin.
 
 =cut
 

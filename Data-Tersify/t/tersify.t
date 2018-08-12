@@ -13,8 +13,11 @@ use TestObject;
 use TestObject::WithName;
 use TestObject::WithUUID;
 
+my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
+
 test_basic_structures_unchanged();
 test_plugin();
+test_tersify_other_objects();
 
 done_testing();
 
@@ -72,7 +75,6 @@ sub test_plugin {
     is(ref($tersified->{object}),
         'Data::Tersify::Summary',
         'The object value is now our summary object');
-    my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
     like(
         ${ $tersified->{object} },
         qr/^ TestObject \s $re_refaddr \s ID \s 42 $/x,
@@ -135,10 +137,10 @@ sub test_plugin {
         refaddr($original->{deep_structure}{many}{layers}),
         'And layers'
     );
-    is(ref($original->{emergency}),
-        'TestObject', 'We still have the original emergency object');
-    is(ref($original->{deep_structure}{many}{layers}{until}),
-        'TestObject', 'We also have the deep object');
+    is(ref($original->{emergency}), 'TestObject',
+        'We still have the original emergency object');
+    is(ref($original->{deep_structure}{many}{layers}{until}), 'TestObject',
+        'We also have the deep object');
 
     # Plugins can say that they handle multiple types of object.
     my $original_multiple = {
@@ -159,4 +161,31 @@ sub test_plugin {
         'The object with a UUID was summarised'
     );
     
+}
+
+sub test_tersify_other_objects {
+    # Objects without anything inside them aren't tersified.
+    my $simple_object = bless { number => 1, other_number => 'also 1' },
+        'Simple';
+    my $structure = { simple_object => $simple_object };
+    my $tersified = tersify($structure);
+    is_deeply($tersified, $structure,
+        q{Simple objects aren't affected});
+
+    # But complex objects are tersified.
+    my $complex_object
+        = bless { id => TestObject->new(42) } => 'Complex::Object';
+    $structure = { complex_object => $complex_object };
+    $tersified = tersify($structure);
+    like(
+        ${ $tersified->{complex_object}{id} },
+        qr{^ TestObject \s $re_refaddr \s ID \s 42 $}x,
+        'The ID inside this object was tersified'
+    );
+    is(
+        ref($tersified->{complex_object}),
+        'Data::Tersify::Summary::Complex::Object::0x'
+            . refaddr($complex_object),
+        'The original type and the refaddr of the object are mentioned'
+    );
 }

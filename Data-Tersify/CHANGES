@@ -1,2 +1,8 @@
+0.002 12-08-2018
+    Tersifies objects that it doesn't recognise, but which contain
+    objects that it does. This was the point of writing this module, and
+    something that it took me an embarrassing amount of time to get around
+    to doing.
+
 0.001 17-08-2017
     Initial version.
