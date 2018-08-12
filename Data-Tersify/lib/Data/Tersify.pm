@@ -219,6 +219,9 @@ separate distribution) as an example of such a plugin.
             }
         }
 
+        ### FIXME: subclasses also. Loop the other way, go through
+        ### the types we know about and see if $object->isa(...)
+        ### rather than hard-coding the ref($object).
         if (my $plugin = $handled_by_plugin{ref($object)}) {
             my $summary = sprintf('%s (0x%x) %s',
                 ref($object), refaddr($object), $plugin->tersify($object));
