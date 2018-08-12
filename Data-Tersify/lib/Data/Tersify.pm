@@ -2,6 +2,7 @@ package Data::Tersify;
 
 use strict;
 use warnings;
+no warnings 'uninitialized';
 
 use parent 'Exporter';
 our @EXPORT_OK = qw(tersify);
@@ -103,17 +104,22 @@ than the ur-object that they might be part of.
 
 =cut
 
+my %seen_refaddr;
+
 sub tersify {
     my ($data_structure) = @_;
 
-    my $changed;
-    ($data_structure, $changed) = _tersify($data_structure);
+    %seen_refaddr = ();
+    ($data_structure) = _tersify($data_structure);
     return $data_structure;
 }
 
 sub _tersify {
     my ($data_structure) = @_;
 
+    # Don't loop infinitely through a complex structure.
+    return $data_structure if $seen_refaddr{refaddr($data_structure)}++;
+    
     # If this is a simple scalar, there's nothing to change.
     if (!ref($data_structure)) {
         return ($data_structure, 0);

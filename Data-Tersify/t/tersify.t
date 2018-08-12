@@ -15,9 +15,10 @@ use TestObject::WithUUID;
 
 my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
 
-test_basic_structures_unchanged();
-test_plugin();
-test_tersify_other_objects();
+subtest 'Basic structures are unchanged' => \&test_basic_structures_unchanged;
+subtest 'Plugins'                        => \&test_plugin;
+subtest 'We can tersify other objects'   => \&test_tersify_other_objects;
+subtest 'We avoid infinite loops'        => \&test_avoid_infinite_loops;
 
 done_testing();
 
@@ -70,8 +71,8 @@ sub test_plugin {
     is(tersify($object), $object,
         'An object passed directly is not tersified');
     my $tersified = tersify({object => $object });
-    is_deeply([keys %$tersified],
-        ['object'], 'Still have just the one key called object');
+    is_deeply([keys %$tersified], ['object'],
+        'Still have just the one key called object');
     is(ref($tersified->{object}),
         'Data::Tersify::Summary',
         'The object value is now our summary object');
@@ -187,4 +188,31 @@ sub test_tersify_other_objects {
             . refaddr($complex_object),
         'The original type and the refaddr of the object are mentioned'
     );
+}
+
+sub test_avoid_infinite_loops {
+    my %babe;
+    $babe{'The babe with the power'} = {
+        'What power?' => {
+            'The power of voodoo' => {
+                'Voodoo?' => {
+                    'You do' => {
+                        'I do what?' => {
+                            'Remind me of the babe' => {
+                                'What babe?' => \%babe
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+    my %dialogue = (
+        'You remind me of the babe' => {
+            'What babe?' => \%babe,
+        }
+    );
+    my $terse_dialogue = tersify(\%dialogue);
+    is_deeply($terse_dialogue, \%dialogue,
+        q{We aren't trapped by infinite loops});
 }
