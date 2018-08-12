@@ -6,7 +6,7 @@ use warnings;
 use parent 'Exporter';
 our @EXPORT_OK = qw(tersify);
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 $VERSION = eval $VERSION;
 
 use Module::Pluggable require => 1;
