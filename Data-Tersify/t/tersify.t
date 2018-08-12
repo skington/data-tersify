@@ -215,4 +215,9 @@ sub test_avoid_infinite_loops {
     my $terse_dialogue = tersify(\%dialogue);
     is_deeply($terse_dialogue, \%dialogue,
         q{We aren't trapped by infinite loops});
+
+    my $parts = bless { dialogue => \%dialogue, babe => \%babe } => 'Parts';
+    my $terse_parts = tersify($parts);
+    is_deeply($terse_parts, $parts,
+        'This applies to blessed objects as well');
 }
