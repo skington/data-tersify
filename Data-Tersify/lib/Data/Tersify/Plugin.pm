@@ -40,11 +40,10 @@ object, rather than the entire object. FIXME: why?
 
 =head2 handles
 
- Out: $class or \@classes
+ Out: @classes
 
-This method returns either a single scalar class name, or an arrayref of
-class names. These are classes that you're prepared to handle in your
-L<tersify> method.
+This method returns one or more class names. These are classes that you're
+prepared to handle in your L<tersify> method.
 
 =head2 tersify
 

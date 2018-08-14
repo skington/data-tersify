@@ -200,21 +200,15 @@ separate distribution) as an example of such a plugin.
 =cut
 
 {
-    my (%plugin_handles, %handled_by_plugin);
+    my (%handled_by_plugin);
 
     sub _tersify_via_plugin {
         my ($object) = @_;
 
-        if (!keys %plugin_handles) {
+        if (!keys %handled_by_plugin) {
             for my $plugin (plugins()) {
-                my $handles = $plugin->handles;
-                $plugin_handles{$plugin} = $handles;
-                if (!ref($handles)) {
-                    $handled_by_plugin{$handles} = $plugin;
-                } elsif (ref($handles) eq 'ARRAY') {
-                    for my $class (@$handles) {
-                        $handled_by_plugin{$class} = $plugin;
-                    }
+                for my $class ($plugin->handles) {
+                    $handled_by_plugin{$class} = $plugin;
                 }
             }
         }
