@@ -30,7 +30,7 @@ It handles DBIx::Class::ResultSource::Table objects only, for the moment.
 
 =cut
 
-sub handles { 'DBIx::Class::ResultSource::Table' }
+sub handles { 'DBIx::Class::ResultSource::Table', 'DBIx::Class::ResultSet' }
 
 =head2 tersify
 
@@ -44,6 +44,8 @@ sub tersify {
 
     if (ref($dbic_object) eq 'DBIx::Class::ResultSource::Table') {
         return $dbic_object->{name};
+    } elsif (ref($dbic_object) eq 'DBIx::Class::ResultSet') {
+        return $dbic_object->{_result_class};
     }
 
     return 'FIXME';

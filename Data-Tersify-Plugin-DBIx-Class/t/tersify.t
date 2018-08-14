@@ -9,6 +9,7 @@ use Test::More;
 use Data::Tersify qw(tersify);
 
 subtest('We can handle a result source', \&test_result_source);
+subtest('We can handle a result set',    \&test_result_set);
 
 done_testing();
 
@@ -32,4 +33,26 @@ sub test_result_source {
     like(${ $tersified->{_result_source} },
         qr{ DBIx::Class::ResultSource::Table \s \S+ \s Dave }x,
         'We just summarised the name of the result source and nothing else');
+}
+
+sub test_result_set {
+    my %data = (
+        result_set => bless {
+            _result_class => 'Arbitrary::Class::Name',
+            attrs         => {
+                Paul    => 'alive',
+                Jessica => 'alive',
+                Leto    => 'dead',
+                Alia    => 'abomination',
+            },
+            cond          => 'Not even a hashref',
+            result_source => 'Ignored',
+        } => 'DBIx::Class::ResultSet',
+    );
+    my $tersified = tersify(\%data);
+    like(
+        ${ $tersified->{result_set} },
+        qr{^ DBIx::Class::ResultSet \s \S+ \s Arbitrary::Class::Name $}x,
+        'We just summarised the result class of a result set'
+    );
 }
