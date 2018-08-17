@@ -131,43 +131,7 @@ sub _tersify {
 
     # If this is a blessed object, see if we know how to tersify it.
     if (blessed($data_structure)) {
-        # We might know how to tersify such an object directly, via a
-        # plugin.
-        my $terse_object = _tersify_via_plugin($data_structure);
-        my $changed = blessed($terse_object)
-            && $terse_object->isa('Data::Tersify::Summary');
-
-        # Although if this is the root structure passed to tersify, we want
-        # to pass it through as-is; we only tersify complicated objects
-        # that feature somewhere deeper in the data structure, possibly
-        # unexpectedly.
-        my ($caller_sub) = (caller(1))[3];
-        if ($changed && $caller_sub ne 'Data::Tersify::tersify') {
-            return ($terse_object, $changed);
-        }
-
-        # If we didn't tersify this object, maybe we can tersify its internal
-        # structure?
-        my $object_contents;
-        if (reftype($data_structure) eq 'HASH') {
-            $object_contents = { %$data_structure };
-        } elsif (reftype($data_structure) eq 'ARRAY') {
-            $object_contents = [ @$data_structure ];
-        }
-        if ($object_contents) {
-            my $maybe_new_structure;
-            ($maybe_new_structure, $changed) = _tersify($object_contents);
-            if ($changed) {
-                $terse_object = $maybe_new_structure;
-                bless $terse_object =>
-                    sprintf('Data::Tersify::Summary::%s::0x%s',
-                    ref($data_structure), refaddr($data_structure));
-                return ($terse_object, $changed);
-            }
-        }
-
-        # OK, return this object unchanged.
-        return ($data_structure, 0);
+        return _tersify_object($data_structure);
     }
 
     # For arrays and hashes, check if any of the elements changed, and if so
@@ -194,6 +158,48 @@ sub _tersify {
         return $changed ? (\%new_hash, 1) : ($data_structure, 0);
     }
 }
+
+sub _tersify_object {
+    my ($data_structure) = @_;
+
+    # We might know how to tersify such an object directly, via a
+    # plugin.
+    my $terse_object = _tersify_via_plugin($data_structure);
+    my $changed      = blessed($terse_object)
+        && $terse_object->isa('Data::Tersify::Summary');
+
+    # Although if this is the root structure passed to tersify, we want
+    # to pass it through as-is; we only tersify complicated objects
+    # that feature somewhere deeper in the data structure, possibly
+    # unexpectedly.
+    my ($caller_sub) = (caller(2))[3];
+    if ($changed && $caller_sub ne 'Data::Tersify::tersify') {
+        return ($terse_object, $changed);
+    }
+
+    # If we didn't tersify this object, maybe we can tersify its internal
+    # structure?
+    my $object_contents;
+    if (reftype($data_structure) eq 'HASH') {
+        $object_contents = {%$data_structure};
+    } elsif (reftype($data_structure) eq 'ARRAY') {
+        $object_contents = [@$data_structure];
+    }
+    if ($object_contents) {
+        my $maybe_new_structure;
+        ($maybe_new_structure, $changed) = _tersify($object_contents);
+        if ($changed) {
+            $terse_object = $maybe_new_structure;
+            bless $terse_object => sprintf('Data::Tersify::Summary::%s::0x%s',
+                ref($data_structure), refaddr($data_structure));
+            return ($terse_object, $changed);
+        }
+    }
+
+    # OK, return this object unchanged.
+    return ($data_structure, 0);
+}
+
 
 =head2 PLUGINS
 
