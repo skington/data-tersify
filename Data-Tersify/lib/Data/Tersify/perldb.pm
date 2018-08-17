@@ -28,8 +28,8 @@ If you already have a DB::afterinit method, or would prefer other things
 to be tersified, just cut and paste the appropriate code.
 
 Many thanks to Ovid, whose
-L<https://gist.github.com/Ovid/919234335d7fc27fca3ec63e6f3782ce|.perldb
-file> was an inspiration and a useful guide.
+L<.perldb file|https://gist.github.com/Ovid/919234335d7fc27fca3ec63e6f3782ce>
+was an inspiration and a useful guide.
 
 =cut
 
