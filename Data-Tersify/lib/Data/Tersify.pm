@@ -50,6 +50,9 @@ design, Data::Tersify is lossy and will throw away information! That's because
 it supposes that that if you're using it, you want to dump information about a
 complex data structure, and you don't I<care> about the fine details.
 
+If you find yourself saying C<x $foo> in the debugger a lot, consider adding
+Data::Tersify::perldb to your .perldb file, or something like it.
+
 =head2 tersify
 
  In: $data_structure
