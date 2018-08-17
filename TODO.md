@@ -2,8 +2,8 @@
 
 # More automatic recognition of stuff
 
-If there's no tersify plugin defined, see if the object overloads
-stringification, or has a to_string method. (Although for HTTP::Message
+If there's no tersify plugin defined, see if the object has a to_string method.
+(Although for HTTP::Message
 objects you don't necessarily want to_string as (a) that might be huge also,
 and (b) x will dump \cJ everywhere in your output.)
 
