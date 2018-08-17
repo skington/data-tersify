@@ -72,8 +72,9 @@ Summaries are either scalar references of the form "I<Classname> (I<refaddr>)
 I<summary>", e.g. "DateTime (0xdeadbeef) 2017-08-15", blessed into the
 Data::Tersify::Summary class, I<or> copies of the
 object's internal state with any sub-objects tersified as above, blessed into
-the Data::Tersify::Summary::I<Foo> class, where I<Foo> is the class the
-object was originally blessed into.
+the Data::Tersify::Summary::I<Foo>:I<refaddr> class, where I<Foo> is the class
+the object was originally blessed into and I<refaddr> the object's original
+address.
 
 So, if you had the plugin Data::Tersify::Plugin::DateTime installed,
 passing a DateTime object to tersify would return that same object, untouched;
