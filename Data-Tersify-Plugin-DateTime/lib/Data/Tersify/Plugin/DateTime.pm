@@ -33,9 +33,12 @@ sub handles { 'DateTime' }
 
 =head2 tersify
 
-It summarises DateTime objects into either C<yyyy-mm-dd> or
-C<yyyy-mm-dd hh:mm:ss>, depending on whether there's a time component to the
-DateTime object or not.
+It summarises DateTime objects without a specified time zone into either
+C<yyyy-mm-dd> or C<yyyy-mm-dd hh:mm:ss>, depending on whether there's a time
+component to the DateTime object or not.
+
+If there is a specified time zone then they are summarised as
+C<yyyy-mm-dd 00:00:00 Time/Zone> or C<yyyy-mm-dd hh:mm:ss Time/Zone>.
 
 =cut
 
@@ -45,6 +48,11 @@ sub tersify {
     my $terse = $datetime->ymd;
     if ($datetime->hms ne '00:00:00') {
         $terse .= ' ' . $datetime->hms;
+        if ($datetime->time_zone->name ne 'floating') {
+            $terse .= ' ' . $datetime->time_zone->name;
+        }
+    } elsif ($datetime->time_zone->name ne 'floating') {
+        $terse .= ' 00:00:00 ' . $datetime->time_zone->name;
     }
     return $terse;
 }
