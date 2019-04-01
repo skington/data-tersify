@@ -10,11 +10,20 @@ use Test::More;
 
 use Data::Tersify qw(tersify);
 use TestObject;
+use TestObject::Overloaded;
+use TestObject::Overloaded::JustImport;
+use TestObject::Overloaded::OtherOperator;
 use TestObject::WithName;
 use TestObject::WithUUID;
 
-test_basic_structures_unchanged();
-test_plugin();
+my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
+
+subtest 'We can tersify stuff inside blessed objects' => \&test_deep;
+subtest 'Basic structures are unchanged' => \&test_basic_structures_unchanged;
+subtest 'Plugins'                        => \&test_plugin;
+subtest 'We can tersify other objects'   => \&test_tersify_other_objects;
+subtest 'We avoid infinite loops'        => \&test_avoid_infinite_loops;
+subtest 'Overloaded stringification'     => \&test_stringification;
 
 test_deep();
 
@@ -138,12 +147,11 @@ sub test_plugin {
     is(tersify($object), $object,
         'An object passed directly is not tersified');
     my $tersified = tersify({object => $object });
-    is_deeply([keys %$tersified],
-        ['object'], 'Still have just the one key called object');
+    is_deeply([keys %$tersified], ['object'],
+        'Still have just the one key called object');
     is(ref($tersified->{object}),
         'Data::Tersify::Summary',
         'The object value is now our summary object');
-    my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
     like(
         ${ $tersified->{object} },
         qr/^ TestObject \s $re_refaddr \s ID \s 42 $/x,
@@ -206,10 +214,10 @@ sub test_plugin {
         refaddr($original->{deep_structure}{many}{layers}),
         'And layers'
     );
-    is(ref($original->{emergency}),
-        'TestObject', 'We still have the original emergency object');
-    is(ref($original->{deep_structure}{many}{layers}{until}),
-        'TestObject', 'We also have the deep object');
+    is(ref($original->{emergency}), 'TestObject',
+        'We still have the original emergency object');
+    is(ref($original->{deep_structure}{many}{layers}{until}), 'TestObject',
+        'We also have the deep object');
 
     # Plugins can say that they handle multiple types of object.
     my $original_multiple = {
@@ -231,3 +239,95 @@ sub test_plugin {
     );
     
 }
+
+sub test_tersify_other_objects {
+    # Objects without anything inside them aren't tersified.
+    my $simple_object = bless { number => 1, other_number => 'also 1' },
+        'Simple';
+    my $structure = { simple_object => $simple_object };
+    my $tersified = tersify($structure);
+    is_deeply($tersified, $structure,
+        q{Simple objects aren't affected});
+
+    # But complex objects are tersified.
+    my $complex_object
+        = bless { id => TestObject->new(42) } => 'Complex::Object';
+    $tersified = tersify($complex_object);
+    like(
+        ${ $tersified->{id} },
+        qr{^ TestObject \s $re_refaddr \s ID \s 42 $}x,
+        'The ID inside this object was tersified'
+    );
+    is(
+        ref($tersified),
+        'Data::Tersify::Summary::Complex::Object::0x'
+            . refaddr($complex_object),
+        'The original type and the refaddr of the object are mentioned'
+    );
+}
+
+sub test_avoid_infinite_loops {
+    my %babe;
+    $babe{'The babe with the power'} = {
+        'What power?' => {
+            'The power of voodoo' => {
+                'Voodoo?' => {
+                    'You do' => {
+                        'I do what?' => {
+                            'Remind me of the babe' => {
+                                'What babe?' => \%babe
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+    my %dialogue = (
+        'You remind me of the babe' => {
+            'What babe?' => \%babe,
+        }
+    );
+    my $terse_dialogue = tersify(\%dialogue);
+    is_deeply($terse_dialogue, \%dialogue,
+        q{We aren't trapped by infinite loops});
+
+    my $parts = bless { dialogue => \%dialogue, babe => \%babe } => 'Parts';
+    my $terse_parts = tersify($parts);
+    is_deeply($terse_parts, $parts,
+        'This applies to blessed objects as well');
+}
+
+sub test_stringification {
+    # We recognise objects that overload stringification.
+    my $overloaded_no_params = TestObject::Overloaded->new;
+    my %data = ( overloaded => $overloaded_no_params );
+    my $tersified = tersify(\%data);
+    like(
+        ${ $tersified->{overloaded} },
+        qr{^ TestObject::Overloaded \s $re_refaddr \s 
+            \QAn object which was passed nothing\E $}x,
+        'We recognise objects that support overloading...'
+    );
+    $data{overloaded} = TestObject::Overloaded->new('a herring');
+    $tersified = tersify(\%data);
+    like(
+        ${ $tersified->{overloaded} },
+        qr{^ TestObject::Overloaded \s $re_refaddr \s 
+            \QAn object which was passed a herring\E $}x,
+        '...no matter their contents'
+    );
+
+    # We won't stringify objects that overload other operations.
+    $data{overloaded} = TestObject::Overloaded::OtherOperator->new;
+    $tersified = tersify(\%data);
+    is(refaddr($tersified->{overloaded}), refaddr($data{overloaded}),
+        'An object that overloads, but not stringification, is not affected'
+    );
+    $data{overloaded} = TestObject::Overloaded::JustImport->new;
+    $tersified = tersify(\%data);
+    is(refaddr($tersified->{overloaded}), refaddr($data{overloaded}),
+        'An object that just imports overload is not affected either'
+    );
+}
+
