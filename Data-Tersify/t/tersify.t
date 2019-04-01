@@ -5,7 +5,7 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/lib";
 
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr blessed);
 use Test::More;
 
 use Data::Tersify qw(tersify);
@@ -16,7 +16,78 @@ use TestObject::WithUUID;
 test_basic_structures_unchanged();
 test_plugin();
 
+test_deep();
+
 done_testing();
+
+sub test_deep {
+    my $deep_structure = {
+        blessed_hash  => bless(
+            {
+                pointless   => 'wibble',
+                test_object => TestObject->new(94),
+                hashref     => { foo => [qw(bar baz), { barf => 'quux' }] }
+            }, 'BlessedHash'
+        ),
+        blessed_array => bless(
+            [
+                { foo => [qw(bar baz), { barf => 'quux' }] },
+                TestObject->new(93)
+            ],
+            'BlessedArray'
+        ),
+    };
+    my $tersified = tersify($deep_structure);
+    isnt($deep_structure, $tersified, "we tersified something");
+
+    is(
+        ref($tersified->{blessed_hash}->{test_object}),
+        'Data::Tersify::Summary',
+        "we tersified the right thing inside a blessed hash"
+    );
+    is(
+        blessed($tersified->{blessed_hash}),
+        blessed($deep_structure->{blessed_hash}),
+        "blessing is preserved when blessed hash contents are changed ..."
+    );
+    isnt(
+        $tersified->{blessed_hash},
+        $deep_structure->{blessed_hash},
+        "... but they're actually new objects"
+    );
+
+    is(
+        ref($tersified->{blessed_array}->[1]),
+        'Data::Tersify::Summary',
+        "we tersified the right thing inside a blessed array"
+    );
+    is(
+        blessed($tersified->{blessed_array}),
+        blessed($deep_structure->{blessed_array}),
+        "blessing is preserved when blessed array contents are changed ..."
+    );
+    isnt(
+        $tersified->{blessed_array},
+        $deep_structure->{blessed_array},
+        "... but they're actually new objects"
+    );
+
+    is(
+        $deep_structure->{blessed_hash}->{pointless},
+        'wibble',
+        'scalars are left alone'
+    );
+    is_deeply(
+        $deep_structure->{blessed_array}->[0],
+        { foo => [qw(bar baz), { barf => 'quux' }] },
+        "we recurse into structures inside blessed arrays"
+    );
+    is_deeply(
+        $deep_structure->{blessed_hash}->{hashref},
+        { foo => [qw(bar baz), { barf => 'quux' }] },
+        "we recurse into structures inside blessed hashes"
+    );
+}
 
 sub test_basic_structures_unchanged {
     # Basic structures.

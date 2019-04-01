@@ -92,36 +92,46 @@ sub _tersify {
         # unexpectedly.
         my ($caller_sub) = (caller(1))[3];
         if ($caller_sub eq 'Data::Tersify::tersify') {
-            return $data_structure;
+            return ($data_structure, 0);
         }
         my $terse_object = _tersify_via_plugin($data_structure);
         my $changed = blessed($terse_object)
             && $terse_object->isa('Data::Tersify::Summary');
-        return ($terse_object, $changed);
+        return ($terse_object, 1) if($changed);
     }
 
     # For arrays and hashes, check if any of the elements changed, and if so
     # return a fresh array or hash.
-    my $changed;
+    my $changed = 0;
     my $get_new_value = sub {
         my ($old_value) = @_;
         my ($new_value, $this_value_changed) = _tersify($old_value);
         $changed += $this_value_changed;
         return $this_value_changed ? $new_value : $old_value;
     };
-    if (ref($data_structure) eq 'ARRAY') {
-        my @new_array;
+    # need to recurse into arrays and blessed arrays so just checking ref()
+    # ain't enough, need to see if we can actually de-ref it
+    if (eval { @{$data_structure}; 1 }) {
+        my $new_array;
         for my $element (@$data_structure) {
-            push @new_array, $get_new_value->($element);
+            push @{$new_array}, $get_new_value->($element);
         }
-        return $changed ? (\@new_array, 1) : ($data_structure, 0);
-    }
-    if (ref($data_structure) eq 'HASH') {
-        my %new_hash;
+        if($changed && blessed($data_structure)) {
+            bless($new_array, blessed($data_structure));
+        }
+        return $changed ? ($new_array, 1) : ($data_structure, 0);
+    # need to recurse into hashes and blessed hashes
+    } elsif (eval { %{$data_structure}; 1 }) {
+        my $new_hash;
         for my $key (keys %$data_structure) {
-            $new_hash{$key} = $get_new_value->($data_structure->{$key});
+            $new_hash->{$key} = $get_new_value->($data_structure->{$key});
         }
-        return $changed ? (\%new_hash, 1) : ($data_structure, 0);
+        if($changed && blessed($data_structure)) {
+            bless($new_hash, blessed($data_structure));
+        }
+        return $changed ? ($new_hash, 1) : ($data_structure, 0);
+    } else {
+        return($data_structure, 0);
     }
 }
 
