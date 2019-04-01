@@ -95,6 +95,12 @@ and had a refaddr of 0xcafebabe, you would get back a hash as above, but
 blessed into the class
 C<Data::Tersify::Summary::Time::Description::0xcafebabe>.
 
+Note that point 2 above (objects aren't tersified if they're the root
+structure) applies only to plugins. If the object contains other objects
+that could be tersified, they will be. One design consequence of this is that
+you should consider writing plugins for I<multiple types of object>, rather
+than the ur-object that they might be part of.
+
 =cut
 
 sub tersify {
@@ -115,21 +121,18 @@ sub _tersify {
 
     # If this is a blessed object, see if we know how to tersify it.
     if (blessed($data_structure)) {
-        # Although if this is the root structure passed to tersify, we want
-        # to pass it through as-is; we only tersify complicated objects
-        # that feature somewhere deeper in the data structure, possibly
-        # unexpectedly.
-        my ($caller_sub) = (caller(1))[3];
-        if ($caller_sub eq 'Data::Tersify::tersify') {
-            return $data_structure;
-        }
-
         # We might know how to tersify such an object directly, via a
         # plugin.
         my $terse_object = _tersify_via_plugin($data_structure);
         my $changed = blessed($terse_object)
             && $terse_object->isa('Data::Tersify::Summary');
-        if ($changed) {
+
+        # Although if this is the root structure passed to tersify, we want
+        # to pass it through as-is; we only tersify complicated objects
+        # that feature somewhere deeper in the data structure, possibly
+        # unexpectedly.
+        my ($caller_sub) = (caller(1))[3];
+        if ($changed && $caller_sub ne 'Data::Tersify::tersify') {
             return ($terse_object, $changed);
         }
 
@@ -149,9 +152,12 @@ sub _tersify {
                 bless $terse_object =>
                     sprintf('Data::Tersify::Summary::%s::0x%s',
                     ref($data_structure), refaddr($data_structure));
+                return ($terse_object, $changed);
             }
         }
-        return ($terse_object, $changed);
+
+        # OK, return this object unchanged.
+        return ($data_structure, 0);
     }
 
     # For arrays and hashes, check if any of the elements changed, and if so
@@ -220,6 +226,16 @@ separate distribution) as an example of such a plugin.
 
 This is free software; you can redistribute it and/or modify it under the same
 terms as Perl 5.
+
+=head1 BUGS
+
+If you find any bugs, or have any feature suggestions, please report them
+via L<https://github.com/skington/data-tersify/issues|github>.
+
+=head1 SEE ALSO
+
+L<Data::Printer> will tersify data structures as part of its standard
+output.
 
 =cut
 

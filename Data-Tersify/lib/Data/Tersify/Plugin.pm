@@ -32,6 +32,12 @@ Data::Tersify::Plugin - how to write a Data::Tersify plugin
 Any Data::Tersify plugin must (a) be in the Data::Tersify::Plugin namespace,
 and (b) implement the class methods L<handles> and L<tersify>.
 
+Because Data::Tersify will not tersify an object via a plugin if it's the root
+structure passed to it, but I<will> tersify an object if it's part of the
+internals of another object which isn't handled by a plugin, you should
+consider implementing your plugin by tersifying I<various components> of an
+object, rather than the entire object. FIXME: why?
+
 =head2 handles
 
  Out: $class or \@classes

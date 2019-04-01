@@ -175,15 +175,14 @@ sub test_tersify_other_objects {
     # But complex objects are tersified.
     my $complex_object
         = bless { id => TestObject->new(42) } => 'Complex::Object';
-    $structure = { complex_object => $complex_object };
-    $tersified = tersify($structure);
+    $tersified = tersify($complex_object);
     like(
-        ${ $tersified->{complex_object}{id} },
+        ${ $tersified->{id} },
         qr{^ TestObject \s $re_refaddr \s ID \s 42 $}x,
         'The ID inside this object was tersified'
     );
     is(
-        ref($tersified->{complex_object}),
+        ref($tersified),
         'Data::Tersify::Summary::Complex::Object::0x'
             . refaddr($complex_object),
         'The original type and the refaddr of the object are mentioned'
