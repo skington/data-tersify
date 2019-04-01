@@ -10,6 +10,9 @@ use Test::More;
 
 use Data::Tersify qw(tersify);
 use TestObject;
+use TestObject::Overloaded;
+use TestObject::Overloaded::JustImport;
+use TestObject::Overloaded::OtherOperator;
 use TestObject::WithName;
 use TestObject::WithUUID;
 
@@ -19,6 +22,7 @@ subtest 'Basic structures are unchanged' => \&test_basic_structures_unchanged;
 subtest 'Plugins'                        => \&test_plugin;
 subtest 'We can tersify other objects'   => \&test_tersify_other_objects;
 subtest 'We avoid infinite loops'        => \&test_avoid_infinite_loops;
+subtest 'Overloaded stringification'     => \&test_stringification;
 
 done_testing();
 
@@ -221,3 +225,37 @@ sub test_avoid_infinite_loops {
     is_deeply($terse_parts, $parts,
         'This applies to blessed objects as well');
 }
+
+sub test_stringification {
+    # We recognise objects that overload stringification.
+    my $overloaded_no_params = TestObject::Overloaded->new;
+    my %data = ( overloaded => $overloaded_no_params );
+    my $tersified = tersify(\%data);
+    like(
+        ${ $tersified->{overloaded} },
+        qr{^ TestObject::Overloaded \s $re_refaddr \s 
+            \QAn object which was passed nothing\E $}x,
+        'We recognise objects that support overloading...'
+    );
+    $data{overloaded} = TestObject::Overloaded->new('a herring');
+    $tersified = tersify(\%data);
+    like(
+        ${ $tersified->{overloaded} },
+        qr{^ TestObject::Overloaded \s $re_refaddr \s 
+            \QAn object which was passed a herring\E $}x,
+        '...no matter their contents'
+    );
+
+    # We won't stringify objects that overload other operations.
+    $data{overloaded} = TestObject::Overloaded::OtherOperator->new;
+    $tersified = tersify(\%data);
+    is(refaddr($tersified->{overloaded}), refaddr($data{overloaded}),
+        'An object that overloads, but not stringification, is not affected'
+    );
+    $data{overloaded} = TestObject::Overloaded::JustImport->new;
+    $tersified = tersify(\%data);
+    is(refaddr($tersified->{overloaded}), refaddr($data{overloaded}),
+        'An object that just imports overload is not affected either'
+    );
+}
+

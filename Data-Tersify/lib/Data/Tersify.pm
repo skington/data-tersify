@@ -10,6 +10,7 @@ our @EXPORT_OK = qw(tersify);
 our $VERSION = '0.002';
 $VERSION = eval $VERSION;
 
+use Devel::OverloadInfo 0.005;
 use Module::Pluggable require => 1;
 use Scalar::Util qw(blessed refaddr reftype);
 
@@ -168,6 +169,22 @@ sub _tersify_object {
     my $changed      = blessed($terse_object)
         && $terse_object->isa('Data::Tersify::Summary');
 
+    # OK, but does it overload stringification?
+    if (!$changed) {
+        if (my $overload_info
+            = Devel::OverloadInfo::overload_info($data_structure))
+        {
+            if ($overload_info->{'""'}) {
+                return (
+                    _summarise_object_as_string(
+                        $data_structure, "$data_structure"
+                    ),
+                    1
+                );
+            }
+        }
+    }
+
     # Although if this is the root structure passed to tersify, we want
     # to pass it through as-is; we only tersify complicated objects
     # that feature somewhere deeper in the data structure, possibly
@@ -227,12 +244,18 @@ separate distribution) as an example of such a plugin.
         ### the types we know about and see if $object->isa(...)
         ### rather than hard-coding the ref($object).
         if (my $plugin = $handled_by_plugin{ref($object)}) {
-            my $summary = sprintf('%s (0x%x) %s',
-                ref($object), refaddr($object), $plugin->tersify($object));
-            return bless \$summary => 'Data::Tersify::Summary';
+            return _summarise_object_as_string($object,
+                $plugin->tersify($object));
         }
         return $object;
     }
+}
+
+sub _summarise_object_as_string {
+    my ($object, $string) = @_;
+    my $summary
+        = sprintf('%s (0x%x) %s', ref($object), refaddr($object), $string);
+    return bless \$summary => 'Data::Tersify::Summary';
 }
 
 =head1 LICENSE
@@ -243,7 +266,7 @@ terms as Perl 5.
 =head1 BUGS
 
 If you find any bugs, or have any feature suggestions, please report them
-via L<https://github.com/skington/data-tersify/issues|github>.
+via L<github|https://github.com/skington/data-tersify/issues>.
 
 =head1 SEE ALSO
 
