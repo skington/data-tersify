@@ -5,6 +5,7 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/lib";
 
+use Data::Dumper;
 use Scalar::Util qw(refaddr blessed);
 use Test::More;
 
@@ -238,32 +239,6 @@ sub test_plugin {
         'The object with a UUID was summarised'
     );
     
-}
-
-sub test_tersify_other_objects {
-    # Objects without anything inside them aren't tersified.
-    my $simple_object = bless { number => 1, other_number => 'also 1' },
-        'Simple';
-    my $structure = { simple_object => $simple_object };
-    my $tersified = tersify($structure);
-    is_deeply($tersified, $structure,
-        q{Simple objects aren't affected});
-
-    # But complex objects are tersified.
-    my $complex_object
-        = bless { id => TestObject->new(42) } => 'Complex::Object';
-    $tersified = tersify($complex_object);
-    like(
-        ${ $tersified->{id} },
-        qr{^ TestObject \s $re_refaddr \s ID \s 42 $}x,
-        'The ID inside this object was tersified'
-    );
-    is(
-        ref($tersified),
-        'Data::Tersify::Summary::Complex::Object::0x'
-            . refaddr($complex_object),
-        'The original type and the refaddr of the object are mentioned'
-    );
 }
 
 sub test_avoid_infinite_loops {
