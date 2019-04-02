@@ -22,11 +22,8 @@ my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
 subtest 'We can tersify stuff inside blessed objects' => \&test_deep;
 subtest 'Basic structures are unchanged' => \&test_basic_structures_unchanged;
 subtest 'Plugins'                        => \&test_plugin;
-subtest 'We can tersify other objects'   => \&test_tersify_other_objects;
 subtest 'We avoid infinite loops'        => \&test_avoid_infinite_loops;
 subtest 'Overloaded stringification'     => \&test_stringification;
-
-test_deep();
 
 done_testing();
 
@@ -55,10 +52,10 @@ sub test_deep {
         'Data::Tersify::Summary',
         "we tersified the right thing inside a blessed hash"
     );
-    is(
+    like(
         blessed($tersified->{blessed_hash}),
-        blessed($deep_structure->{blessed_hash}),
-        "blessing is preserved when blessed hash contents are changed ..."
+        qr/::BlessedHash::/,
+        "blessing is (kinda) preserved when blessed hash contents are changed ..."
     );
     isnt(
         $tersified->{blessed_hash},
@@ -71,10 +68,10 @@ sub test_deep {
         'Data::Tersify::Summary',
         "we tersified the right thing inside a blessed array"
     );
-    is(
+    like(
         blessed($tersified->{blessed_array}),
-        blessed($deep_structure->{blessed_array}),
-        "blessing is preserved when blessed array contents are changed ..."
+        qr/::BlessedArray::/,
+        "blessing is (kinda) preserved when blessed array contents are changed ..."
     );
     isnt(
         $tersified->{blessed_array},
@@ -279,9 +276,8 @@ sub test_stringification {
     my %data = ( overloaded => $overloaded_no_params );
     my $tersified = tersify(\%data);
     like(
-        ${ $tersified->{overloaded} },
-        qr{^ TestObject::Overloaded \s $re_refaddr \s 
-            \QAn object which was passed nothing\E $}x,
+        ${$tersified->{overloaded}},
+        qr/TestObject::Overloaded $re_refaddr An object which was passed nothing/,
         'We recognise objects that support overloading...'
     );
     $data{overloaded} = TestObject::Overloaded->new('a herring');

@@ -132,18 +132,7 @@ sub _tersify {
 
     # If this is a blessed object, see if we know how to tersify it.
     if (blessed($data_structure)) {
-        # Although if this is the root structure passed to tersify, we want
-        # to pass it through as-is; we only tersify complicated objects
-        # that feature somewhere deeper in the data structure, possibly
-        # unexpectedly.
-        my ($caller_sub) = (caller(1))[3];
-        if ($caller_sub eq 'Data::Tersify::tersify') {
-            return ($data_structure, 0);
-        }
-        my $terse_object = _tersify_via_plugin($data_structure);
-        my $changed = blessed($terse_object)
-            && $terse_object->isa('Data::Tersify::Summary');
-        return ($terse_object, 1) if($changed);
+        return _tersify_object($data_structure);
     }
 
     # For arrays and hashes, check if any of the elements changed, and if so
