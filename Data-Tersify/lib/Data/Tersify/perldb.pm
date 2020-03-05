@@ -34,7 +34,7 @@ was an inspiration and a useful guide.
 =cut
 
 sub DB::afterinit {
-    $DB::alias{x} = 's/^ x \s (.+) /x Data::Tersify::tersify($1)/x';
+    $DB::alias{x} = 's/^ x \s (.+) /x Data::Tersify::tersify_many($1)/x';
 }
 
 1;

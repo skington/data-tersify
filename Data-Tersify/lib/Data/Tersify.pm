@@ -217,6 +217,19 @@ sub _tersify_object {
     return ($data_structure, 0);
 }
 
+=head2 tersify_many
+
+ In: @data_structures
+ Out: @terser_data_structures
+
+A simple wrapper around L</tersify> that expects to be passed one or more
+variables.
+
+=cut
+
+sub tersify_many {
+    return map { tersify($_) } @_;
+}
 
 =head2 PLUGINS
 
