@@ -195,8 +195,8 @@ sub test_tersify_other_objects {
     );
     is(
         ref($tersified),
-        'Data::Tersify::Summary::Complex::Object::0x'
-            . sprintf('%x', refaddr($complex_object)),
+        sprintf('Data::Tersify::Summary::Complex::Object::0x%x',
+            refaddr($complex_object)),
         'The original type and the refaddr of the object are mentioned'
     );
 }
