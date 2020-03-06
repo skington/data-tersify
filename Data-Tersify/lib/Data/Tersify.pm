@@ -207,7 +207,7 @@ sub _tersify_object {
         ($maybe_new_structure, $changed) = _tersify($object_contents);
         if ($changed) {
             $terse_object = $maybe_new_structure;
-            bless $terse_object => sprintf('Data::Tersify::Summary::%s::0x%s',
+            bless $terse_object => sprintf('Data::Tersify::Summary::%s::0x%x',
                 ref($data_structure), refaddr($data_structure));
             return ($terse_object, $changed);
         }

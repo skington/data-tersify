@@ -26,6 +26,8 @@ subtest 'Overloaded stringification'     => \&test_stringification;
 
 done_testing();
 
+# We don't mess with standard Perl structures: scalars, arrays or hashes.
+
 sub test_basic_structures_unchanged {
     # Basic structures.
     is_deeply(tersify('foo'), 'foo', 'Simple scalars pass through');
@@ -67,6 +69,9 @@ sub test_basic_structures_unchanged {
         \%complex_structure,
         'A structure with many nested arrayrefs and hashrefs is untouched');
 }
+
+# If we have a plugin that knows about a type of object, it will apply at
+# all levels apart from the absolute top level.
 
 sub test_plugin {
     my $object = TestObject->new(42);
@@ -168,6 +173,8 @@ sub test_plugin {
     
 }
 
+# Our plugins will apply to the guts of blessed objects as well.
+
 sub test_tersify_other_objects {
     # Objects without anything inside them aren't tersified.
     my $simple_object = bless { number => 1, other_number => 'also 1' },
@@ -189,10 +196,12 @@ sub test_tersify_other_objects {
     is(
         ref($tersified),
         'Data::Tersify::Summary::Complex::Object::0x'
-            . refaddr($complex_object),
+            . sprintf('%x', refaddr($complex_object)),
         'The original type and the refaddr of the object are mentioned'
     );
 }
+
+# We won't try to continuously tersify data structures we've seen before.
 
 sub test_avoid_infinite_loops {
     my %babe;
@@ -225,6 +234,8 @@ sub test_avoid_infinite_loops {
     is_deeply($terse_parts, $parts,
         'This applies to blessed objects as well');
 }
+
+# If an object can stringify itself, we use that as its representation.
 
 sub test_stringification {
     # We recognise objects that overload stringification.
