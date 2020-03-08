@@ -30,6 +30,7 @@ subtest 'We avoid infinite loops'        => \&test_avoid_infinite_loops;
 subtest 'But we update references'       => \&test_update_references;
 subtest 'Overloaded stringification'     => \&test_stringification;
 subtest 'Tersify many values'            => \&test_tersify_many;
+subtest 'Cannot tersify weird things'    => \&test_cannot_tersify_weird_things;
 
 done_testing();
 
@@ -465,6 +466,27 @@ sub test_tersify_many {
     is(ref($terse[3]{other_object}),
         'Data::Tersify::Summary',
         '#3 tersified object contents are tersified');
+}
+
+# We can't tersify weird things like Regexps, though.
+
+sub test_cannot_tersify_weird_things {
+    # Regexps: test these in some detail.
+    my $regexp = qr/^ Foo /xi;
+    is(tersify($regexp), $regexp, q{We won't attempt to tersify regexps});
+    my %stuff = (
+        regexp      => $regexp,
+        test_object => TestObject->new('Wossname'),
+    );
+    my $terse_stuff = tersify(\%stuff);
+    is($terse_stuff->{regexp}, $regexp,
+        'Not even as part of a data structure...');
+    is(ref($terse_stuff->{test_object}), 'Data::Tersify::Summary',
+        '...that we otherwise tersified');
+
+    # Assume that the same sort of thing goes for coderefs etc.
+    my $coderef = sub { TestObject->new('This will never get run') };
+    is(tersify($coderef), $coderef, 'Coderefs are also unaffected');
 }
 
 
