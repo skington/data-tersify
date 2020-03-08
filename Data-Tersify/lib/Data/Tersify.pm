@@ -335,9 +335,10 @@ sub tersify_many {
 
 =head2 PLUGINS
 
-Data::Tersify can be extended by plugins. See Data::Tersify::Plugin for
-a description of plugins, and Data::Tersify::Plugin::DateTime (provided in a
-separate distribution) as an example of such a plugin.
+Data::Tersify can be extended by plugins. See L<Data::Tersify::Plugin> for
+a general description of plugins; for examples of plugins, see
+L<Data::Tersify::Plugin::DateTime> and L<Data::Tersify::Plugin::DBIx::Class>,
+provided in separate distributions.
 
 =cut
 
