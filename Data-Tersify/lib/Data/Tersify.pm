@@ -13,7 +13,7 @@ $VERSION = eval $VERSION;
 
 use Carp;
 use Devel::OverloadInfo 0.005;
-use Module::Pluggable require => 1;
+use Module::Pluggable require => 1, force_search_all_paths => 1;
 use Scalar::Util qw(blessed refaddr reftype);
 
 =head1 NAME
