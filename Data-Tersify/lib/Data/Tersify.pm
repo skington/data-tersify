@@ -5,9 +5,10 @@ use warnings;
 no warnings 'uninitialized';
 
 use parent 'Exporter';
-our @EXPORT_OK = qw(tersify);
+our @EXPORT_OK = qw(tersify tersify_many);
 
-our $VERSION = '0.002';
+# Have you updated the version number in the POD below?
+our $VERSION = '1.000';
 $VERSION = eval $VERSION;
 
 use Carp;
@@ -18,6 +19,10 @@ use Scalar::Util qw(blessed refaddr reftype);
 =head1 NAME
 
 Data::Tersify - generate terse equivalents of complex data structures
+
+=head1 VERSION
+
+This is version 1.000 of Data::Tersify.
 
 =head1 SYNOPSIS
 
@@ -38,8 +43,8 @@ you don't fully understand and you have a variable you want to inspect,
 and you say C<x $foo> in the debugger, or C<print STDERR Dumper($foo)> from
 your code, or something very similar with the dumper module of your choice,
 and you then get I<pages upon pages of unhelpful stuff> because C<$foo>
-contained, I<somewhere> a reference to a DateTime, DBIx::Class, Moose or other
-verbose object... you didn't need that.
+contained, I<somewhere> one or more references to a DateTime, DBIx::Class,
+Moose or other verbose object ... you didn't need that.
 
 Data::Tersify looks at any data structure it's given, and if it finds a
 blessed object that it knows about, anywhere, it replaces it in the data
@@ -71,12 +76,12 @@ plugin has been registered that groks that type of object, I<or> they
 contain as an element one such object.
 
 Summaries are either scalar references of the form "I<Classname> (I<refaddr>)
-I<summary>", e.g. "DateTime (0xdeadbeef) 2017-08-15", blessed into the
+I<summary>", e.g. "DateTime (0xdeadbeef) 2017-08-15 12:34:56", blessed into the
 Data::Tersify::Summary class, I<or> copies of the
 object's internal state with any sub-objects tersified as above, blessed into
-the Data::Tersify::Summary::I<Foo>:I<refaddr> class, where I<Foo> is the class
-the object was originally blessed into and I<refaddr> the object's original
-address.
+the Data::Tersify::Summary::I<Foo>::0xI<refaddr> class, where I<Foo> is the
+class the object was originally blessed into and I<refaddr> the object's
+original address.
 
 So, if you had the plugin Data::Tersify::Plugin::DateTime installed,
 passing a DateTime object to tersify would return that same object, untouched;
@@ -316,7 +321,11 @@ sub _replace_contents_of_structure_with {
  Out: @terser_data_structures
 
 A simple wrapper around L</tersify> that expects to be passed one or more
-variables.
+variables. Note that as each value is passed to L</tersify>, none of the values
+in @data_structures will be tersified if they're objects recognised by plugins.
+(Whereas they would have been if you'd said C<tersify(\@data_structures)>.
+
+This is intended to be used by e.g. the Perl debugger's x command.
 
 =cut
 

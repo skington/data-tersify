@@ -1,4 +1,14 @@
-0.003 FIXME WHEN
+1.000 FIXME WHEN
+
+    [Features]
+    
+        After tersification, any references to now-tersified data structures
+        will be updated to point to the new, terser data structures.
+        This makes this module worth using on anything other than trivial
+        things!
+        
+        tersify_many() takes a list of values, and is used in the perl debugger
+        plugin Data::Tersify::perldb.
 
     [Tweaks]
     

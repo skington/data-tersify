@@ -9,7 +9,7 @@ use Data::Dumper;
 use Scalar::Util qw(refaddr reftype);
 use Test::More;
 
-use Data::Tersify qw(tersify);
+use Data::Tersify qw(tersify tersify_many);
 use TestObject;
 use TestObject::Overloaded;
 use TestObject::Overloaded::JustImport;
@@ -29,6 +29,7 @@ subtest 'We can tersify other objects'   => \&test_tersify_other_objects;
 subtest 'We avoid infinite loops'        => \&test_avoid_infinite_loops;
 subtest 'But we update references'       => \&test_update_references;
 subtest 'Overloaded stringification'     => \&test_stringification;
+subtest 'Tersify many values'            => \&test_tersify_many;
 
 done_testing();
 
@@ -441,4 +442,29 @@ sub test_stringification {
         'An object that just imports overload is not affected either'
     );
 }
+
+# We can tersify many values.
+sub test_tersify_many {
+    my @non_terse = (
+        'Meh', TestObject->new('Wossname'), [qw(toto tata titi)],
+        bless {
+            other_object => TestObject::WithName->new('Will this do?')
+        } => 'TestedElsewhere'
+    );
+    my @terse = tersify_many(@non_terse);
+    is(scalar @terse, 4,
+        'You can tersify many values and get that many back');
+    is($terse[0], 'Meh', '#0: scalar, unchanged');
+    is(ref($terse[1]), 'TestObject', '#1: top-level object unchanged');
+    is_deeply($terse[2], [qw(toto tata titi)], '#2: arrayref, unchanged');
+    like(
+        ref($terse[3]),
+        qr{^ Data::Tersify::Summary::TestedElsewhere::0x [0-9a-f]+ $}x,
+        '#3: tersified object'
+    );
+    is(ref($terse[3]{other_object}),
+        'Data::Tersify::Summary',
+        '#3 tersified object contents are tersified');
+}
+
 
