@@ -10,6 +10,7 @@ our @EXPORT_OK = qw(tersify);
 our $VERSION = '0.002';
 $VERSION = eval $VERSION;
 
+use Carp;
 use Devel::OverloadInfo 0.005;
 use Module::Pluggable require => 1;
 use Scalar::Util qw(blessed refaddr reftype);
@@ -109,30 +110,46 @@ than the ur-object that they might be part of.
 
 =cut
 
-my %seen_refaddr;
+my (%seen_refaddr, %refaddr_tersified_as);
 
 sub tersify {
     my ($data_structure) = @_;
 
-    %seen_refaddr = ();
+    %seen_refaddr         = ();
+    %refaddr_tersified_as = ();
     ($data_structure) = _tersify($data_structure);
+    while (%refaddr_tersified_as) {
+        my @known_refaddrs = keys %refaddr_tersified_as;
+        %seen_refaddr = ();
+        ($data_structure) = _tersify($data_structure);
+        delete @refaddr_tersified_as{@known_refaddrs};
+    }
     return $data_structure;
 }
 
 sub _tersify {
     my ($data_structure) = @_;
 
-    # Don't loop infinitely through a complex structure.
-    return $data_structure if $seen_refaddr{refaddr($data_structure)}++;
-    
+    # If this is a data structure that we've tersified already, replace it.
+    if (my $terse_object = $refaddr_tersified_as{refaddr($data_structure)}) {
+        return ($terse_object, 1);
+    }
+
     # If this is a simple scalar, there's nothing to change.
     if (!ref($data_structure)) {
         return ($data_structure, 0);
     }
 
+    # Don't loop infinitely through a complex structure.
+    return ($data_structure, 0) if $seen_refaddr{refaddr($data_structure)}++;
+    
     # If this is a blessed object, see if we know how to tersify it.
     if (blessed($data_structure)) {
-        return _tersify_object($data_structure);
+        my ($object, $changed) = _tersify_object($data_structure);
+        if ($changed) {
+            $refaddr_tersified_as{refaddr($data_structure)} = $object;
+        }
+        return ($object, $changed);
     }
 
     # For arrays and hashes, check if any of the elements changed, and if so
@@ -149,19 +166,32 @@ sub _tersify {
         for my $element (@$data_structure) {
             push @new_array, $get_new_value->($element);
         }
-        return $changed ? (\@new_array, 1) : ($data_structure, 0);
+        if (!$changed) {
+            return ($data_structure, 0);
+        }
+        return ($refaddr_tersified_as{ refaddr($data_structure) }
+                = \@new_array, 1);
     }
     if (ref($data_structure) eq 'HASH') {
         my %new_hash;
         for my $key (keys %$data_structure) {
             $new_hash{$key} = $get_new_value->($data_structure->{$key});
         }
-        return $changed ? (\%new_hash, 1) : ($data_structure, 0);
+        if (!$changed) {
+            return ($data_structure, 0);
+        }
+        return ($refaddr_tersified_as{ refaddr($data_structure) }
+                = \%new_hash, 1);
     }
 }
 
 sub _tersify_object {
     my ($data_structure) = @_;
+
+    # A summary has, by definition, already been tersified.
+    if (ref($data_structure) eq 'Data::Tersify::Summary') {
+        return ($data_structure, 0);
+    }
 
     # We might know how to tersify such an object directly, via a
     # plugin.
@@ -206,9 +236,43 @@ sub _tersify_object {
         my $maybe_new_structure;
         ($maybe_new_structure, $changed) = _tersify($object_contents);
         if ($changed) {
-            $terse_object = $maybe_new_structure;
-            bless $terse_object => sprintf('Data::Tersify::Summary::%s::0x%x',
-                ref($data_structure), refaddr($data_structure));
+            # We might need to build a new Data::Tersify::Summary object.
+            if (
+                ref($data_structure)
+                !~ /^ Data::Tersify::Summary:: .+ ::0x [0-9a-f]+ $/xi)
+            {
+                # No need to remember that we messed with $object_contents;
+                # that was a temporary variable we created purely to see if
+                # we could tersify it, and it's not referenced anywhere.
+                delete $refaddr_tersified_as{refaddr($object_contents)};
+                # Just create a new blessed object; the calling code will
+                # realise that we created a new object and update
+                # %refaddr_tersified_as with the proper values.
+                $terse_object = $maybe_new_structure;
+                bless $terse_object =>
+                    sprintf('Data::Tersify::Summary::%s::0x%x',
+                    ref($data_structure), refaddr($data_structure));
+            } else {
+                # We can reuse the existing one, which is now *even terser*!
+                # There's no danger of blatting existing data structures,
+                # because we've *already* replaced the previous data structure
+                # with one of ours, as part of generating a new object.
+                if (ref($maybe_new_structure) eq 'HASH'
+                    && reftype($data_structure) eq 'HASH')
+                {
+                    %$data_structure = %$maybe_new_structure;
+                } elsif (ref($maybe_new_structure) eq 'ARRAY'
+                    && reftype($data_structure) eq 'ARRAY')
+                {
+                    @$data_structure = @$maybe_new_structure;
+                } else {
+                    croak
+                        sprintf(
+                        q{Want to put %s in existing %s, but that's a %s?!},
+                        $maybe_new_structure, $data_structure,
+                        reftype($data_structure));
+                }
+            }
             return ($terse_object, $changed);
         }
     }

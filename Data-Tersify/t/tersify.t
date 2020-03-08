@@ -5,6 +5,7 @@ use warnings;
 use FindBin;
 use lib "$FindBin::Bin/lib";
 
+use Data::Dumper;
 use Scalar::Util qw(refaddr);
 use Test::More;
 
@@ -16,12 +17,17 @@ use TestObject::Overloaded::OtherOperator;
 use TestObject::WithName;
 use TestObject::WithUUID;
 
+local $Data::Dumper::Indent   = 1;
+local $Data::Dumper::Sortkeys = 1;
+local $Data::Dumper::Terse    = 1;
+
 my $re_refaddr = qr{ \( 0x [0-9a-f]+ \) }x;
 
 subtest 'Basic structures are unchanged' => \&test_basic_structures_unchanged;
 subtest 'Plugins'                        => \&test_plugin;
 subtest 'We can tersify other objects'   => \&test_tersify_other_objects;
 subtest 'We avoid infinite loops'        => \&test_avoid_infinite_loops;
+subtest 'But we update references'       => \&test_update_references;
 subtest 'Overloaded stringification'     => \&test_stringification;
 
 done_testing();
@@ -233,6 +239,38 @@ sub test_avoid_infinite_loops {
     my $terse_parts = tersify($parts);
     is_deeply($terse_parts, $parts,
         'This applies to blessed objects as well');
+}
+
+# If we find a reference to a structure or object that we end up tersifying
+# later on, that reference will be updated to point to the tersified
+# object.
+
+sub test_update_references {
+    my $plugin_affected_object = bless {
+        plugin_content => TestObject->new(1337),
+        linked_list => {
+            before => undef,
+            after => undef,
+        },
+    } => 'WeakRecursion';
+    $plugin_affected_object->{linked_list}{self} = $plugin_affected_object;
+    my $tersified_object = tersify($plugin_affected_object);
+    is_deeply(
+        $tersified_object->{linked_list},
+        {
+            before => undef,
+            after  => undef,
+            self   => $tersified_object,
+        },
+        'We update references to tersified objects',
+    ) or diag(Dumper($tersified_object));
+
+=for later
+   
+Check that we also update references to hashrefs and arrayrefs. 
+    
+=cut
+
 }
 
 # If an object can stringify itself, we use that as its representation.
