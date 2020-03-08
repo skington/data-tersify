@@ -6,7 +6,7 @@ use FindBin;
 use lib "$FindBin::Bin/lib";
 
 use Data::Dumper;
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr reftype);
 use Test::More;
 
 use Data::Tersify qw(tersify);
@@ -246,6 +246,8 @@ sub test_avoid_infinite_loops {
 # object.
 
 sub test_update_references {
+    # If we have a reference to a blessed object - most notably ourself
+    # - we'll replace it with the tersified version.
     my $plugin_affected_object = bless {
         plugin_content => TestObject->new(1337),
         linked_list => {
@@ -265,12 +267,144 @@ sub test_update_references {
         'We update references to tersified objects',
     ) or diag(Dumper($tersified_object));
 
-=for later
-   
-Check that we also update references to hashrefs and arrayrefs. 
-    
-=cut
+    # This also affects hashes and arrays that we tersify, and potentially
+    # multiple objects.
+    my @interesting_things = (
+        'a leaf',
+        TestObject->new('Unknown ID'),
+        'floccinaucinihilipilification'
+    );
+    push @interesting_things, \@interesting_things;
+    my %nature = (
+        interesting => \@interesting_things,
+        with_name   => TestObject::WithName->new('Actually quite boring'),
+        with_uuid   => TestObject::WithUUID->new('Not actually validated'),
+    );
+    my $complexly_nested_object = bless {
+        nature             => \%nature,
+        interesting_things => \@interesting_things,
+    } => 'ComplexInternals';
+    push @interesting_things, $complexly_nested_object;
+    $complexly_nested_object->{objects} = bless [
+        $complexly_nested_object,
+        $interesting_things[1],
+        $nature{with_name},
+        $nature{with_uuid},
+    ] => 'ObjectList';
+    my $object_ref = \$complexly_nested_object;
+    $complexly_nested_object->{references} = {
+        self_ref => $object_ref,
+        name     => $nature{with_name},
+        uuid     => $nature{with_uuid},
+    };
+    my $terse_nested_object = tersify($complexly_nested_object);
 
+    # We have the top-level hash keys we expect.
+    my $any_failures;
+    is_deeply(
+        [sort keys %$terse_nested_object],
+        ['interesting_things', 'nature', 'objects', 'references'],
+        'The guts of our test object look correct'
+    ) or $any_failures++;
+
+    # Our interesting things arrayref contains updated references to
+    # tersified objects, including the main object, and also itself.
+    subtest(
+        'Interesting things',
+        sub {
+            my $terse_interesting_things
+                = $terse_nested_object->{interesting_things};
+            is($terse_interesting_things->[0], 'a leaf',
+                '#0 scalar unchanged')
+                or return;
+            is(ref($terse_interesting_things->[1]), 'Data::Tersify::Summary',
+                '#1 object')
+                or return;
+            is(
+                $terse_interesting_things->[2],
+                'floccinaucinihilipilification',
+                '#2 scalar unchanged'
+            ) or return;
+            is(ref($terse_interesting_things->[3]), 'ARRAY',
+                '#3 is an arrayref...')
+                or return;
+            is($terse_interesting_things->[3], $terse_interesting_things,
+                '...a reference to the parent arrayref')
+                or return;
+            is($terse_interesting_things->[4], $terse_nested_object,
+                '#4 is the parent object')
+                or return;
+            return 1;
+        }
+    ) or $any_failures++;
+
+    # The nature hashref has also been updated.
+    subtest(
+        'Nature',
+        sub {
+            my $terse_nature = $terse_nested_object->{nature};
+            is(
+                $terse_nature->{interesting},
+                $terse_nested_object->{interesting_things},
+                'interesting is updated to match'
+            ) or $any_failures++;
+            is(ref($terse_nature->{with_name}),
+                'Data::Tersify::Summary', 'with_name is tersified')
+                or $any_failures++;
+            is(ref($terse_nature->{with_uuid}),
+                'Data::Tersify::Summary', 'with_uuid is tersified')
+                or $any_failures++;
+        }
+    );
+
+    # The object list is a blessed object, and has similarly been updated.
+    subtest(
+        'Object list',
+        sub {
+            my $terse_object_list = $terse_nested_object->{objects};
+            like(
+                ref($terse_object_list),
+                qr/^ Data::Tersify::Summary::ObjectList:: 0x [0-9a-f]+ $/x,
+                'The object list has been reblessed as a summary object...'
+            ) or $any_failures++;
+            is(reftype($terse_object_list), 'ARRAY', '...which is an array')
+                or $any_failures++;
+            is_deeply(
+                [@$terse_object_list],
+                [
+                    $terse_nested_object,
+                    $terse_nested_object->{interesting_things}[1],
+                    $terse_nested_object->{nature}{with_name},
+                    $terse_nested_object->{nature}{with_uuid},
+                ],
+                'The tersified object references were used here'
+            ) or $any_failures++;
+        }
+    );
+
+    # References have similarly been updated, including references to
+    # references.
+    subtest(
+        'References',
+        sub {
+            my $terse_references = $terse_nested_object->{references};
+            is(
+                $terse_references->{name},
+                $terse_nested_object->{nature}{with_name},
+                'The terse name object reference was updated'
+            ) or $any_failures++;
+            is(
+                $terse_references->{uuid},
+                $terse_nested_object->{nature}{with_uuid},
+                'The terse UUID object reference was updated'
+            ) or $any_failures++;
+            is(${ $terse_references->{self_ref} },
+                $terse_nested_object,
+                'The reference to our object was updated')
+                or $any_failures++;
+        }
+    );
+    diag(Dumper($terse_nested_object)) if $any_failures || 0;
 }
 
 # If an object can stringify itself, we use that as its representation.

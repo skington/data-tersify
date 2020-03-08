@@ -110,7 +110,7 @@ than the ur-object that they might be part of.
 
 =cut
 
-my (%seen_refaddr, %refaddr_tersified_as);
+my (%seen_refaddr, %refaddr_tersified_as, %safe_to_mess_with_refaddr);
 
 sub tersify {
     my ($data_structure) = @_;
@@ -140,6 +140,19 @@ sub _tersify {
         return ($data_structure, 0);
     }
 
+    # If it's a reference to something, tersify *that* and take a reference
+    # to it.
+    if (ref($data_structure) eq 'REF') {
+        my $referenced_data_structure = $$data_structure;
+        my ($maybe_new_data_structure, $changed)
+            = _tersify($referenced_data_structure);
+        if (!$changed) {
+            return ($data_structure, 0);
+        }
+        my $ref = \$maybe_new_data_structure;
+        return ($ref, 1);
+    }
+
     # Don't loop infinitely through a complex structure.
     return ($data_structure, 0) if $seen_refaddr{refaddr($data_structure)}++;
     
@@ -153,7 +166,7 @@ sub _tersify {
     }
 
     # For arrays and hashes, check if any of the elements changed, and if so
-    # return a fresh array or hash.
+    # create a fresh array or hash.
     my $changed;
     my $get_new_value = sub {
         my ($old_value) = @_;
@@ -161,6 +174,7 @@ sub _tersify {
         $changed += $this_value_changed;
         return $this_value_changed ? $new_value : $old_value;
     };
+    my $new_structure;
     if (ref($data_structure) eq 'ARRAY') {
         my @new_array;
         for my $element (@$data_structure) {
@@ -169,10 +183,8 @@ sub _tersify {
         if (!$changed) {
             return ($data_structure, 0);
         }
-        return ($refaddr_tersified_as{ refaddr($data_structure) }
-                = \@new_array, 1);
-    }
-    if (ref($data_structure) eq 'HASH') {
+        $new_structure = \@new_array;
+    } elsif (ref($data_structure) eq 'HASH') {
         my %new_hash;
         for my $key (keys %$data_structure) {
             $new_hash{$key} = $get_new_value->($data_structure->{$key});
@@ -180,8 +192,23 @@ sub _tersify {
         if (!$changed) {
             return ($data_structure, 0);
         }
-        return ($refaddr_tersified_as{ refaddr($data_structure) }
-                = \%new_hash, 1);
+        $new_structure = \%new_hash;
+    } else {
+        return ($data_structure, 0);
+    }
+
+    # If it's safe to mess with the existing data structure (e.g. because this
+    # is the second pass, or later, that we've done through a data structure
+    # and this is an arrayref or hashref that we already anonymised earlier),
+    # just update its contents. Otherwise mark it as a new data structure.
+    if (!$safe_to_mess_with_refaddr{refaddr($data_structure)}) {
+        $refaddr_tersified_as{ refaddr($data_structure) } = $new_structure;
+        $safe_to_mess_with_refaddr{refaddr($new_structure)} = 1;
+        return ($new_structure, 1);
+    } else {
+        _replace_contents_of_structure_with($data_structure,
+            $new_structure);
+        return ($data_structure, 0);
     }
 }
 
@@ -237,10 +264,7 @@ sub _tersify_object {
         ($maybe_new_structure, $changed) = _tersify($object_contents);
         if ($changed) {
             # We might need to build a new Data::Tersify::Summary object.
-            if (
-                ref($data_structure)
-                !~ /^ Data::Tersify::Summary:: .+ ::0x [0-9a-f]+ $/xi)
-            {
+            if (!$safe_to_mess_with_refaddr{refaddr($data_structure)}) {
                 # No need to remember that we messed with $object_contents;
                 # that was a temporary variable we created purely to see if
                 # we could tersify it, and it's not referenced anywhere.
@@ -252,26 +276,14 @@ sub _tersify_object {
                 bless $terse_object =>
                     sprintf('Data::Tersify::Summary::%s::0x%x',
                     ref($data_structure), refaddr($data_structure));
+                $safe_to_mess_with_refaddr{refaddr($terse_object)}++;
             } else {
                 # We can reuse the existing one, which is now *even terser*!
                 # There's no danger of blatting existing data structures,
                 # because we've *already* replaced the previous data structure
                 # with one of ours, as part of generating a new object.
-                if (ref($maybe_new_structure) eq 'HASH'
-                    && reftype($data_structure) eq 'HASH')
-                {
-                    %$data_structure = %$maybe_new_structure;
-                } elsif (ref($maybe_new_structure) eq 'ARRAY'
-                    && reftype($data_structure) eq 'ARRAY')
-                {
-                    @$data_structure = @$maybe_new_structure;
-                } else {
-                    croak
-                        sprintf(
-                        q{Want to put %s in existing %s, but that's a %s?!},
-                        $maybe_new_structure, $data_structure,
-                        reftype($data_structure));
-                }
+                _replace_contents_of_structure_with($data_structure,
+                    $maybe_new_structure);
             }
             return ($terse_object, $changed);
         }
@@ -279,6 +291,23 @@ sub _tersify_object {
 
     # OK, return this object unchanged.
     return ($data_structure, 0);
+}
+
+sub _replace_contents_of_structure_with {
+    my ($safe_structure, $new_contents) = @_;
+
+    if (reftype($safe_structure) eq 'HASH'
+        && reftype($new_contents) eq 'HASH')
+    {
+        %$safe_structure = %$new_contents;
+    } elsif (reftype($safe_structure) eq 'ARRAY'
+        && reftype($new_contents) eq 'ARRAY')
+    {
+        @$safe_structure = @$new_contents;
+    } else {
+        croak sprintf(q{Want to put %s in existing %s, but that's a %s?!},
+            $new_contents, $safe_structure, reftype($new_contents));
+    }
 }
 
 =head2 tersify_many
