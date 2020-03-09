@@ -1,2 +1,12 @@
-0.001 12-08-2018
+1.000 2020-03-08
+
+    [Features]
+    
+        Also summarise views.
+
+    [Documentation]
+    
+        Explain what this tersifies and how, and why that's useful.
+
+0.001 2018-08-12
     Initial version.

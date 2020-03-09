@@ -14,7 +14,7 @@ subtest('We can handle a result set',    \&test_result_set);
 done_testing();
 
 sub test_result_source {
-    my %data = (
+    my %table_data = (
         _result_source => bless {
             _columns => {
                 map { $_ => { data_type => 'CHAR', is_nullable => 0 } }
@@ -29,10 +29,26 @@ sub test_result_source {
             }
         } => 'DBIx::Class::ResultSource::Table',
     );
-    my $tersified = tersify(\%data);
+    my $tersified = tersify(\%table_data);
     like(${ $tersified->{_result_source} },
         qr{ DBIx::Class::ResultSource::Table \s \S+ \s Dave }x,
-        'We just summarised the name of the result source and nothing else');
+        'We just summarised the name of the table and nothing else');
+
+    my %view_data = (
+        _result_source => bless {
+            _columns         => 'We established that these are ignored',
+            _ordered_columns => [qw(yeah yeah yeah)],
+            _relationships   => 'Dickens was paid by the word, you know',
+            view_definition =>
+                q{OK, that's not true, but then none of this is},
+            name => 'Look at Dave!',
+        } => 'DBIx::Class::ResultSource::View'
+    );
+    my $tersified_view = tersify(\%view_data);
+    use Data::Dumper;
+    like(${ $tersified_view->{_result_source} },
+        qr{ DBIx::Class::ResultSource::View \s \S+ \s Look \s at \s Dave! }x,
+        'This also works for views');
 }
 
 sub test_result_set {
