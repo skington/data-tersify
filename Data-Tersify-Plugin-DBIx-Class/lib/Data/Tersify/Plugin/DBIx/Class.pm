@@ -5,7 +5,7 @@ use warnings;
 
 use DateTime;
 
-our $VERSION = '1.000';
+our $VERSION = '1.001';
 $VERSION = eval $VERSION;
 
 =head1 NAME
@@ -14,7 +14,7 @@ Data::Tersify::Plugin::DBIx::Class - tersify DBIx::Class objects
 
 =head1 VERSION
 
-This is version 1.000.
+This is version 1.001.
 
 =head1 SYNOPSIS
 
