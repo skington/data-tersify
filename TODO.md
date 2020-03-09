@@ -1,9 +1,5 @@
 ## TODO
 
-# Local TODO
-
-Actually test tersify_many.
-
 # More automatic recognition of stuff
 
 If there's no tersify plugin defined, see if the object has a to_string method.
