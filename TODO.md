@@ -1,5 +1,19 @@
 ## TODO
 
+# Better plugin handling
+
+Let plugins say "ask me whether I want to deal with this object", e.g. as a
+way of handling Role::DataObject.
+
+Disable or enable plugins in real time.
+
+See which plugins are available.
+
+Configure plugins, e.g. "I never care about time zones"?
+
+Tell plugins "I want you to tersify a bunch of different things", so they can
+say e.g. "normally I'd say 00:00:00 isn't significant, but in this case it is".
+
 # More automatic recognition of stuff
 
 If there's no tersify plugin defined, see if the object has a to_string method.
