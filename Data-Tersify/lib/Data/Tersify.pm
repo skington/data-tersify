@@ -120,8 +120,9 @@ my (%seen_refaddr, %refaddr_tersified_as, %safe_to_mess_with_refaddr);
 sub tersify {
     my ($data_structure) = @_;
 
-    %seen_refaddr         = ();
-    %refaddr_tersified_as = ();
+    %seen_refaddr              = ();
+    %refaddr_tersified_as      = ();
+    %safe_to_mess_with_refaddr = ();
     ($data_structure) = _tersify($data_structure);
     while (%refaddr_tersified_as) {
         my @known_refaddrs = keys %refaddr_tersified_as;
