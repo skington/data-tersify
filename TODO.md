@@ -1,5 +1,9 @@
 ## TODO
 
+Note that these were all things that I thought of at the time, so stuck them in
+here. There is no guarantee that any of this will get done, or even that I 
+still think it's a good idea.
+
 # Better plugin handling
 
 Let plugins say "ask me whether I want to deal with this object", e.g. as a
