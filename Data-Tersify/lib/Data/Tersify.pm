@@ -8,7 +8,7 @@ use parent 'Exporter';
 our @EXPORT_OK = qw(tersify tersify_many);
 
 # Have you updated the version number in the POD below?
-our $VERSION = '1.002';
+our $VERSION = '1.003';
 $VERSION = eval $VERSION;
 
 use Carp;
@@ -22,7 +22,7 @@ Data::Tersify - generate terse equivalents of complex data structures
 
 =head1 VERSION
 
-This is version 1.002 of Data::Tersify.
+This is version 1.003 of Data::Tersify.
 
 =head1 SYNOPSIS
 
