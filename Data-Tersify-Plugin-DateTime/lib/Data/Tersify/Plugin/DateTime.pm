@@ -14,7 +14,7 @@ Data::Tersify::Plugin::DateTime - tersify DateTime objects
 
 =head1 SYNOPSIS
 
- use Data::Tersify;
+ use Data::Tersify qw(tersify);
  print dumper(tersify({ now => DateTime->now }));
  # Prints just today's date and time in yyyy-mm-ss hh:mm:ss format,
  # rather than a full screen of DateTime internals
