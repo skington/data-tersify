@@ -62,8 +62,8 @@ Data::Tersify::perldb to your .perldb file, or something like it.
 
 =head2 tersify
 
- In: $data_structure
- In: $terser_data_structure
+ In:  $data_structure
+ Out: $terser_data_structure
 
 Supplied with a data structure, returns a data structure with the complicated
 bits summarised. Every attempt is made to preserve those parts of the data
